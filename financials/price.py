@@ -23,12 +23,18 @@ def convert_txt_to_csv(input_file, output_file):
             category = "Full Yearly Results"
         elif "Notification of Results" in data:
             category = "Notification of Results"
+        elif "Profit Guidance" in data:
+            category = "Profit Guidance"
         elif "Cash Dividend" in data:
             category = "CD"
         elif "Half Yearly Results" in data:
             category = "Half Yearly Results"
         elif "Annual General Meeting" in data:
             category = "AGM"
+        elif "Preferential Offering" in data:
+            category = "Pref Offering"
+        elif "Placements" in data:
+            category = "Placement"
         
         csv_rows.append([date_time, category])
 
