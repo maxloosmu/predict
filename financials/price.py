@@ -1,5 +1,7 @@
 import re
 import csv
+from datetime import datetime
+from collections import defaultdict
 
 def convert_txt_to_csv(input_file, output_file):
     # Read the content of the input file
@@ -15,28 +17,41 @@ def convert_txt_to_csv(input_file, output_file):
 
     # Process entries and create rows for CSV
     csv_rows = [["Date & Time", "Title Category"]]  # Header row
+    agm_years = set()  # To keep track of years where AGM has been recorded
+    date_entries = defaultdict(list)
+
     for date_time, data in paired_entries:
-        category = ""
-        if "DRP" in data:
-            category = "DRP"
-        elif "Full Yearly Results" in data:
-            category = "Full Yearly Results"
-        elif "Notification of Results" in data:
-            category = "Notification of Results"
-        elif "Profit Guidance" in data:
-            category = "Profit Guidance"
-        elif "Cash Dividend" in data:
-            category = "CD"
-        elif "Half Yearly Results" in data:
-            category = "Half Yearly Results"
-        elif "Annual General Meeting" in data:
-            category = "AGM"
-        elif "Preferential Offering" in data:
-            category = "Pref Offering"
-        elif "Placements" in data:
-            category = "Placement"
+        category = categorize_entry(data)
+        if category:
+            date = datetime.strptime(date_time, "%d %b %Y %I:%M %p").date()
+            if category == "AGM":
+                year = date.year
+                if year not in agm_years:
+                    date_entries[date].append((date_time, category))
+                    agm_years.add(year)
+            else:
+                date_entries[date].append((date_time, category))
+
+    # Process entries for each date
+    for date in sorted(date_entries.keys(), reverse=True):
+        entries = date_entries[date]
+        entries.sort(key=lambda x: x[0], reverse=True)  # Sort by time, latest first
         
-        csv_rows.append([date_time, category])
+        processed_entries = []
+        cd_added = False
+        for date_time, category in entries:
+            if category == "CD":
+                if not cd_added:
+                    processed_entries.append((date_time, category))
+                    cd_added = True
+            else:
+                processed_entries.append((date_time, category))
+        
+        # Swap CD and Results if necessary
+        if len(processed_entries) >= 2 and processed_entries[0][1] == "CD" and "Results" in processed_entries[1][1]:
+            processed_entries[0], processed_entries[1] = processed_entries[1], processed_entries[0]
+        
+        csv_rows.extend(processed_entries)
 
     # Write to CSV file
     with open(output_file, 'w', newline='') as file:
@@ -44,6 +59,35 @@ def convert_txt_to_csv(input_file, output_file):
         writer.writerows(csv_rows)
 
     print(f"Conversion complete. Output saved to {output_file}")
+
+def categorize_entry(data):
+    if "Minutes of Annual General Meeting" in data:
+        return ""
+    elif "Annual General Meeting" in data:
+        return "AGM"
+    elif "REPL" in data:
+        return ""
+    elif "Full Yearly Results" in data:
+        return "Full Yearly Results"
+    elif "Half Yearly Results" in data:
+        return "Half Yearly Results"
+    elif "First Quarter Results" in data:
+        return "Q1 Results"
+    elif "Third Quarter Results" in data:
+        return "Q3 Results"
+    elif "Notification of Results" in data:
+        return "Notification of Results"
+    elif "Profit Guidance" in data:
+        return "Profit Guidance"
+    elif "Cash Dividend" in data:
+        return "CD"
+    elif "BUSINESS UPDATE" in data:
+        return "Business Update"
+    elif "Preferential Offering" in data:
+        return "Pref Offering"
+    elif "Placements" in data or "PLACEMENT" in data:
+        return "Placement"
+    return ""
 
 # Usage
 input_file = 'price.txt'
