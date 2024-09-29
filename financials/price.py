@@ -1,6 +1,6 @@
 import re
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 def convert_txt_to_csv(input_file, output_file):
@@ -17,20 +17,37 @@ def convert_txt_to_csv(input_file, output_file):
 
     # Process entries and create rows for CSV
     csv_rows = [["Date & Time", "Title Category"]]  # Header row
-    agm_years = set()  # To keep track of years where AGM has been recorded
     date_entries = defaultdict(list)
+    agm_entries = []
 
     for date_time, data in paired_entries:
         category = categorize_entry(data)
         if category:
-            date = datetime.strptime(date_time, "%d %b %Y %I:%M %p").date()
+            date = datetime.strptime(date_time, "%d %b %Y %I:%M %p")
             if category == "AGM":
-                year = date.year
-                if year not in agm_years:
-                    date_entries[date].append((date_time, category))
-                    agm_years.add(year)
+                agm_entries.append((date, date_time, category))
             else:
-                date_entries[date].append((date_time, category))
+                date_entries[date.date()].append((date_time, category))
+
+    # Process AGM entries
+    agm_entries.sort(key=lambda x: x[0], reverse=True)  # Sort by date, latest first
+    filtered_agm_entries = []
+    current_group = []
+
+    for entry in agm_entries:
+        if not current_group or (current_group[0][0] - entry[0]) <= timedelta(days=90):
+            current_group.append(entry)
+        else:
+            filtered_agm_entries.append(current_group[0])  # Add the latest entry from the group
+            current_group = [entry]  # Start a new group
+
+    if current_group:
+        filtered_agm_entries.append(current_group[0])  # Add the latest entry from the last group
+
+    # Add filtered AGM entries to date_entries
+    for _, date_time, category in filtered_agm_entries:
+        date = datetime.strptime(date_time, "%d %b %Y %I:%M %p").date()
+        date_entries[date].append((date_time, category))
 
     # Process entries for each date
     for date in sorted(date_entries.keys(), reverse=True):
