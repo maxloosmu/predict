@@ -78,7 +78,7 @@ def convert_txt_to_csv(input_file, output_file):
     print(f"Conversion complete. Output saved to {output_file}")
 
 def categorize_entry(data):
-    if "Minutes of Annual General Meeting" in data:
+    if "Minutes" in data:
         return ""
     elif "Annual General Meeting" in data:
         return "AGM"
