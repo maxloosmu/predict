@@ -19,6 +19,7 @@ def convert_txt_to_csv(input_file, output_file):
     csv_rows = [["Date & Time", "Title Category"]]  # Header row
     date_entries = defaultdict(list)
     agm_entries = []
+    results_entries = []
 
     for date_time, data in paired_entries:
         category = categorize_entry(data)
@@ -26,6 +27,8 @@ def convert_txt_to_csv(input_file, output_file):
             date = datetime.strptime(date_time, "%d %b %Y %I:%M %p")
             if category == "AGM":
                 agm_entries.append((date, date_time, category))
+            elif "Yearly Results" in category or "Half Yearly Results" in category:
+                results_entries.append((date, date_time, category))
             else:
                 date_entries[date.date()].append((date_time, category))
 
@@ -44,8 +47,23 @@ def convert_txt_to_csv(input_file, output_file):
     if current_group:
         filtered_agm_entries.append(current_group[0])  # Add the latest entry from the last group
 
-    # Add filtered AGM entries to date_entries
-    for _, date_time, category in filtered_agm_entries:
+    # Process Results entries
+    results_entries.sort(key=lambda x: x[0])  # Sort by date, earliest first
+    filtered_results_entries = []
+    current_group = []
+
+    for entry in results_entries:
+        if not current_group or (entry[0] - current_group[0][0]) <= timedelta(days=90):
+            current_group.append(entry)
+        else:
+            filtered_results_entries.append(current_group[0])  # Add the earliest entry from the group
+            current_group = [entry]  # Start a new group
+
+    if current_group:
+        filtered_results_entries.append(current_group[0])  # Add the earliest entry from the last group
+
+    # Add filtered AGM and Results entries to date_entries
+    for _, date_time, category in filtered_agm_entries + filtered_results_entries:
         date = datetime.strptime(date_time, "%d %b %Y %I:%M %p").date()
         date_entries[date].append((date_time, category))
 
@@ -98,7 +116,9 @@ def categorize_entry(data):
         return "Profit Guidance"
     elif "Cash Dividend" in data:
         return "CD"
-    elif "BUSINESS UPDATE" in data:
+    elif re.search(r"Notification .+ Business Performance Update", data):
+        return "Notification of Update"
+    elif "BUSINESS UPDATE" in data or "Business Performance Update" in data:
         return "Business Update"
     elif "Preferential Offering" in data:
         return "Pref Offering"

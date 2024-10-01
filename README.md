@@ -10,3 +10,5 @@
     - open priced.csv and save as priced.csv again to change the date and time.
 ### Some python code to merge priced.csv with formatted.csv
     - merge_price.py creates the file formatted2.csv.
+### Some Excel VBA code
+    - to bold, highlight, merge and centre selected rows.
