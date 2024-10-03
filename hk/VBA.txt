@@ -1,0 +1,37 @@
+Sub MergeColumnsAndFormat()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    
+    ' Set the worksheet to the active sheet
+    Set ws = ActiveSheet
+    
+    ' Find the last row with data
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Loop through each row
+    For i = lastRow To 1 Step -1
+        ' Check if only the first two columns are filled
+        If Not IsEmpty(ws.Cells(i, 1)) And Not IsEmpty(ws.Cells(i, 2)) And IsEmpty(ws.Cells(i, 3)) Then
+            ' Merge the second column with the next four columns
+            ws.Range(ws.Cells(i, 2), ws.Cells(i, 6)).Merge
+            
+            ' Center the text in the merged cell
+            ws.Cells(i, 2).HorizontalAlignment = xlCenter
+            
+            ' Bold and highlight the first column in yellow
+            With ws.Cells(i, 1)
+                .Font.Bold = True
+                .Interior.Color = RGB(255, 255, 0)  ' Yellow
+            End With
+            
+            ' Bold and highlight the merged column in yellow
+            With ws.Cells(i, 2)
+                .Font.Bold = True
+                .Interior.Color = RGB(255, 255, 0)  ' Yellow
+            End With
+        End If
+    Next i
+    
+    MsgBox "Columns merged and formatted successfully!", vbInformation
+End Sub
