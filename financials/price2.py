@@ -30,40 +30,62 @@ def parse_entries(content):
     return [(entries[i], entries[i + 1].strip()) for i in range(0, len(entries), 2)]
 
 def categorize_entry(data):
+    # Ignore entries containing "Minutes"
+    if "Minutes" in data:
+        return ""
+    # Ignore entries containing "REPL" unless they are related to AGM or CD
+    if "REPL" in data and not ("Annual General Meeting" in data):
+        return ""
+    # Additional conditional checks for specific categories
+    if re.search(r"Notification .+ Business Performance Update", data):
+        return "Notification of Update"
+    if re.search(r"BUSINESS UPDATE|Business Performance Update|Business Update", data):
+        return "Business Update"
+
     # Direct lookup from CATEGORY_LOOKUP dictionary
     for key, value in CATEGORY_LOOKUP.items():
         if key in data:
             return value
 
-    # Additional conditional checks for specific categories
-    if "Minutes" in data or "REPL" in data:
-        return ""  # Ignore entries containing "Minutes" or "REPL"
-    elif re.search(r"Notification .+ Business Performance Update", data):
-        return "Notification of Update"
-    elif re.search(r"BUSINESS UPDATE|Business Performance Update|Business Update", data):
-        return "Business Update"
-    
     return ""  # Return empty string if no category matches
 
-def filter_entries(entries, interval_days, reverse=False):
-    # Sort entries by date, either ascending or descending based on reverse flag
-    entries.sort(key=lambda x: x[0], reverse=reverse)
+def filter_agm_entries(entries, interval_days):
+    # Sort entries by date in descending order to keep the latest entry in each group
+    entries.sort(key=lambda x: x[0], reverse=True)
     filtered_entries, current_group = [], []
 
     # Group entries based on the interval_days condition
     for entry in entries:
-        if not current_group or abs((entry[0] - current_group[0][0]).days) <= interval_days:
+        if not current_group or (current_group[-1][0] - entry[0]) <= timedelta(days=interval_days):
             current_group.append(entry)
         else:
-            # Select the appropriate entry from the group based on the reverse flag
-            selected_entry = current_group[0] if reverse else current_group[-1]
-            filtered_entries.append(selected_entry)
+            # Keep the latest entry from the group
+            filtered_entries.append(current_group[0])
             current_group = [entry]
 
     # Add the last group if it exists
     if current_group:
-        selected_entry = current_group[0] if reverse else current_group[-1]
-        filtered_entries.append(selected_entry)
+        filtered_entries.append(current_group[0])
+
+    return filtered_entries
+
+def filter_results_entries(entries, interval_days):
+    # Sort entries by date in ascending order to keep the earliest entry in each group
+    entries.sort(key=lambda x: x[0])
+    filtered_entries, current_group = [], []
+
+    # Group entries based on the interval_days condition
+    for entry in entries:
+        if not current_group or (entry[0] - current_group[0][0]) <= timedelta(days=interval_days):
+            current_group.append(entry)
+        else:
+            # Keep the earliest entry from the group
+            filtered_entries.append(current_group[0])
+            current_group = [entry]
+
+    # Add the last group if it exists
+    if current_group:
+        filtered_entries.append(current_group[0])
 
     return filtered_entries
 
@@ -94,30 +116,10 @@ def convert_txt_to_csv(input_file, output_file):
                 date_entries[date.date()].append((date_time, category))
 
     # Filter AGM entries based on a 90-day interval, keeping the latest entry in each group
-    agm_entries.sort(key=lambda x: x[0], reverse=True)
-    filtered_agm_entries = []
-    current_group = []
-    for entry in agm_entries:
-        if not current_group or (current_group[0][0] - entry[0]) <= timedelta(days=90):
-            current_group.append(entry)
-        else:
-            filtered_agm_entries.append(current_group[0])  # Keep the latest entry
-            current_group = [entry]
-    if current_group:
-        filtered_agm_entries.append(current_group[0])
+    filtered_agm_entries = filter_agm_entries(agm_entries, 90)
 
     # Filter Results entries based on a 90-day interval, keeping the earliest entry in each group
-    results_entries.sort(key=lambda x: x[0])
-    filtered_results_entries = []
-    current_group = []
-    for entry in results_entries:
-        if not current_group or (entry[0] - current_group[0][0]) <= timedelta(days=90):
-            current_group.append(entry)
-        else:
-            filtered_results_entries.append(current_group[0])  # Keep the earliest entry
-            current_group = [entry]
-    if current_group:
-        filtered_results_entries.append(current_group[0])
+    filtered_results_entries = filter_results_entries(results_entries, 90)
 
     # Add filtered AGM and Results entries to date_entries dictionary
     for _, date_time, category in filtered_agm_entries + filtered_results_entries:
@@ -152,6 +154,7 @@ def convert_txt_to_csv(input_file, output_file):
     print(f"Conversion complete. Output saved to {output_file}")
 
 # Usage
-input_file = 'price.txt'
-output_file = 'priced.csv'
-convert_txt_to_csv(input_file, output_file)
+if __name__ == "__main__":
+    input_file = 'price.txt'
+    output_file = 'priced2.csv'
+    convert_txt_to_csv(input_file, output_file)
