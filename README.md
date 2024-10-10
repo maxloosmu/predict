@@ -11,4 +11,4 @@
 ### Some python code to merge priced.csv with formatted.csv
     - merge_price.py creates the file formatted2.csv.
 ### Some Excel VBA code
-    - to bold, highlight, merge and centre selected rows.
+    - to format the data to the furthest extent possible.
