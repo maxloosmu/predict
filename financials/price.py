@@ -8,94 +8,118 @@ def convert_txt_to_csv(input_file, output_file):
     with open(input_file, 'r') as file:
         content = file.read().strip()
 
-    # Split the content into individual entries
-    pattern = r'(\d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2} [AP]M)'
+    # Split the content into individual entries using regex
+    # The regex captures date-time patterns like "03 Nov 2022 05:07 PM"
+    pattern = r'(\d{1,2} [A-Z][a-z]{2} \d{4} \d{1,2}:\d{2} [AP]M)'
     entries = re.split(pattern, content)[1:]  # Start from index 1 to skip initial empty string
-    
+
     # Pair up the dates with their corresponding data
     paired_entries = [(entries[i], entries[i+1].strip()) for i in range(0, len(entries), 2)]
 
-    # Process entries and create rows for CSV
-    csv_rows = [["Date & Time", "Title Category"]]  # Header row
-    date_entries = defaultdict(list)
-    agm_entries = []
-    results_entries = []
-
-    for date_time, data in paired_entries:
+    # Categorize entries
+    all_entries = []
+    for date_time_str, data in paired_entries:
         category = categorize_entry(data)
         if category:
-            date = datetime.strptime(date_time, "%d %b %Y %I:%M %p")
-            if category == "AGM":
-                agm_entries.append((date, date_time, category))
-            elif "Yearly Results" in category or "Half Yearly Results" in category:
-                results_entries.append((date, date_time, category))
-            else:
-                date_entries[date.date()].append((date_time, category))
+            try:
+                date_time = datetime.strptime(date_time_str, "%d %b %Y %I:%M %p")
+            except ValueError as e:
+                print(f"Error parsing date-time '{date_time_str}': {e}")
+                continue  # Skip this entry if date parsing fails
+            all_entries.append((date_time, category))
 
-    # Process AGM entries
-    agm_entries.sort(key=lambda x: x[0], reverse=True)  # Sort by date, latest first
-    filtered_agm_entries = []
-    current_group = []
+    # Separate AGM entries from other entries
+    agm_entries = [entry for entry in all_entries if entry[1] == "AGM"]
+    other_entries = [entry for entry in all_entries if entry[1] != "AGM"]
 
-    for entry in agm_entries:
-        if not current_group or (current_group[0][0] - entry[0]) <= timedelta(days=90):
-            current_group.append(entry)
+    # Filter AGM entries to retain only the latest within any 3-month window
+    filtered_agm_entries = filter_agm_entries(agm_entries)
+
+    # Combine filtered AGM entries with other entries
+    combined_entries = other_entries + filtered_agm_entries
+
+    # Define priority: "Results" (1) before "CD" (2) before others (3)
+    def get_priority(category):
+        if "Results" in category:
+            return 1
+        elif "CD" in category:
+            return 2
         else:
-            filtered_agm_entries.append(current_group[0])  # Add the latest entry from the group
-            current_group = [entry]  # Start a new group
+            return 3
 
-    if current_group:
-        filtered_agm_entries.append(current_group[0])  # Add the latest entry from the last group
+    # Sort combined entries
+    # Primary Sort: Date descending
+    # Secondary Sort: Priority ascending ("Results" before "CD" before others)
+    # Tertiary Sort: Time descending within the same date and priority
+    sorted_entries = sorted(
+        combined_entries,
+        key=lambda x: (
+            -x[0].year,
+            -x[0].month,
+            -x[0].day,
+            get_priority(x[1]),
+            -x[0].hour,
+            -x[0].minute
+        )
+    )
 
-    # Process Results entries
-    results_entries.sort(key=lambda x: x[0])  # Sort by date, earliest first
-    filtered_results_entries = []
-    current_group = []
-
-    for entry in results_entries:
-        if not current_group or (entry[0] - current_group[0][0]) <= timedelta(days=90):
-            current_group.append(entry)
-        else:
-            filtered_results_entries.append(current_group[0])  # Add the earliest entry from the group
-            current_group = [entry]  # Start a new group
-
-    if current_group:
-        filtered_results_entries.append(current_group[0])  # Add the earliest entry from the last group
-
-    # Add filtered AGM and Results entries to date_entries
-    for _, date_time, category in filtered_agm_entries + filtered_results_entries:
-        date = datetime.strptime(date_time, "%d %b %Y %I:%M %p").date()
-        date_entries[date].append((date_time, category))
-
-    # Process entries for each date
-    for date in sorted(date_entries.keys(), reverse=True):
-        entries = date_entries[date]
-        entries.sort(key=lambda x: x[0], reverse=True)  # Sort by time, latest first
-        
-        processed_entries = []
-        cd_added = False
-        for date_time, category in entries:
-            if category == "CD":
-                if not cd_added:
-                    processed_entries.append((date_time, category))
-                    cd_added = True
-            else:
-                processed_entries.append((date_time, category))
-        
-        # Swap CD and Results if necessary
-        if len(processed_entries) >= 2 and processed_entries[0][1] == "CD" and "Results" in processed_entries[1][1]:
-            processed_entries[0], processed_entries[1] = processed_entries[1], processed_entries[0]
-        
-        csv_rows.extend(processed_entries)
+    # Prepare CSV rows
+    csv_rows = [["Date & Time", "Title Category"]]
+    for entry in sorted_entries:
+        date_time = entry[0]
+        category = entry[1]
+        formatted_dt = f"{date_time.day}/{date_time.month}/{date_time.year} {date_time.hour:02}:{date_time.minute:02}"
+        csv_rows.append([formatted_dt, category])
 
     # Write to CSV file
-    with open(output_file, 'w', newline='') as file:
+    with open(output_file, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerows(csv_rows)
 
     print(f"Conversion complete. Output saved to {output_file}")
 
+def filter_agm_entries(agm_entries):
+    """
+    Filters AGM entries to retain only the latest entry within any 3-month window.
+
+    Parameters:
+        agm_entries (list): List of tuples containing (datetime, category) for AGM entries.
+
+    Returns:
+        list: Filtered list of AGM entries.
+    """
+    # Sort AGM entries in descending order (latest first)
+    sorted_agm = sorted(agm_entries, key=lambda x: x[0], reverse=True)
+    filtered = []
+    last_selected_date = None
+
+    for entry in sorted_agm:
+        current_date = entry[0]
+        if not last_selected_date:
+            # Select the first AGM entry
+            filtered.append(entry)
+            last_selected_date = current_date
+        else:
+            # Check if the current AGM is at least 3 months apart from the last selected AGM
+            # Using 90 days as an approximation for 3 months
+            if (last_selected_date - current_date) > timedelta(days=90):
+                filtered.append(entry)
+                last_selected_date = current_date
+            else:
+                # Skip this AGM entry as it's within 3 months of the last selected AGM
+                continue
+    return filtered
+
 def categorize_entry(data):
+    """
+    Categorizes the entry based on the content string.
+
+    Parameters:
+        data (str): The data string containing category information.
+
+    Returns:
+        str: The categorized title.
+    """
     if "Minutes" in data:
         return ""
     elif "Annual General Meeting" in data:
