@@ -1,0 +1,133 @@
+Sub FormatSortMergeAndLabel()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim company As String 
+    company = "Company "
+    
+    ' 1. Set the worksheet to the active sheet
+    Set ws = ActiveSheet
+    ActiveWindow.Zoom = 85
+
+    ' 2. Delete the entire column F
+    ws.Columns("F").Delete
+
+    ' 3. Select all cells in the worksheet and set font, font size, and alignment
+    With ws.Cells
+        .Font.Name = "Calibri"
+        .Font.Size = 11
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlTop
+    End With
+
+    ' 4. Find the last row with data
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    ' 5. Sort the data range (excluding the header) based on column A values (oldest to newest)
+    Set dataRange = ws.Range("A1:F" & lastRow)
+    With ws.Sort
+        .SortFields.Clear
+        .SortFields.Add Key:=dataRange.Columns(1), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        .SetRange dataRange
+        .Header = xlNo
+        .Apply
+    End With
+
+    ' 6. Set NumberFormat for columns B to E
+    ws.Range("B:E").NumberFormat = "0.000"
+
+    ' 7. Set NumberFormat for the new column F
+    ws.Columns("F").NumberFormat = "#,##0"
+    
+    ' 8. Loop through each row
+    For i = lastRow To 1 Step -1
+        ' 8.1. Check if only the first two columns are filled
+        If Not IsEmpty(ws.Cells(i, 1)) And Not IsEmpty(ws.Cells(i, 2)) And IsEmpty(ws.Cells(i, 3)) Then
+            ' 8.2. Merge the second column with the next four columns
+            ws.Range(ws.Cells(i, 2), ws.Cells(i, 6)).Merge
+            
+            ' 8.3. Center the text in the merged cell
+            ws.Cells(i, 2).HorizontalAlignment = xlCenter
+            
+            ' 8.4. Bold and highlight the first column in yellow
+            With ws.Cells(i, 1)
+                .Font.Bold = True
+                .Interior.Color = RGB(255, 255, 0)  ' Yellow
+            End With
+            
+            ' 8.5. Bold and highlight the merged column in yellow
+            With ws.Cells(i, 2)
+                .Font.Bold = True
+                .Interior.Color = RGB(255, 255, 0)  ' Yellow
+            End With
+        End If
+    Next i
+    
+    ' 9. Select all rows and columns with values and set borders for only these cells
+    With ws.UsedRange
+        .Borders(xlEdgeLeft).LineStyle = xlContinuous
+        .Borders(xlEdgeTop).LineStyle = xlContinuous
+        .Borders(xlEdgeBottom).LineStyle = xlContinuous
+        .Borders(xlEdgeRight).LineStyle = xlContinuous
+        .Borders(xlInsideVertical).LineStyle = xlContinuous
+        .Borders(xlInsideHorizontal).LineStyle = xlContinuous
+    End With
+    
+    ' 10. Insert 4 rows
+    Rows("1:4").Select
+    Selection.Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
+    
+    ' Set the values for cells A4 and B4
+    With ws
+        ' Insert "Date" and "Open" in cells A4 and B4
+        .Range("A4").Value = "Date"
+        .Range("B4").Value = "Open"
+        .Range("C4").Value = "High"
+        .Range("D4").Value = "Low"
+        .Range("E4").Value = "Close"
+        .Range("F4").Value = "Volume"
+        
+        ' Make the text in cells A4 and B4 bold
+        .Range("A4:F4").Font.Bold = True
+
+        ' Add borders around cells A4 and B4
+        With .Range("A4:F4").Borders
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+        End With
+
+        ' Copy the cells A4:B4 and paste at H4, O4, and V4
+        .Range("A4:F4").Copy
+        .Range("H4").PasteSpecial Paste:=xlPasteAll
+        .Range("O4").PasteSpecial Paste:=xlPasteAll
+        .Range("V4").PasteSpecial Paste:=xlPasteAll
+        Application.CutCopyMode = False
+
+        ' Input 2021 in cell A2, format it, and merge cells A2:F2
+        .Range("A2").Value = company + "2021"
+        .Range("A2").Font.Bold = True
+
+        ' Merge cells A2 to F2 and center the content
+        .Range("A2:F2").Merge
+        .Range("A2:F2").HorizontalAlignment = xlCenter
+        .Range("A2:F2").VerticalAlignment = xlCenter
+
+        ' Add borders around the merged cells A2:F2
+        With .Range("A2:F2").Borders
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+        End With
+
+        ' Copy the merged cells A2:F2 and paste at H2, O2, and V2
+        .Range("A2:F2").Copy
+        .Range("H2").PasteSpecial Paste:=xlPasteAll
+        .Range("O2").PasteSpecial Paste:=xlPasteAll
+        .Range("V2").PasteSpecial Paste:=xlPasteAll
+        Application.CutCopyMode = False
+
+        ' Insert specific year values in the merged cells at H2, O2, and V2
+        .Range("H2").Value = company + "2022"
+        .Range("O2").Value = company + "2023"
+        .Range("V2").Value = company + "2024"
+    End With
+End Sub
