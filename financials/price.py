@@ -144,6 +144,14 @@ def categorize_entry(data):
         return "Notification of Update"
     elif "BUSINESS UPDATE" in data or "Business Performance Update" in data or "Business Update" in data:
         return "Business Update"
+    elif "Date of Release of Operational Updates" in data:
+        return "Notification of Results Release"
+    elif "Operational Updates" in data:
+        return "Results Release"
+    elif "Financial Highlights" in data:
+        return "Financial Highlights"
+    elif "Quarterly Update" in data:
+        return "Quarterly Update"
     elif "Preferential Offering" in data:
         return "Pref Offering"
     elif "Placements" in data or "PLACEMENT" in data:
