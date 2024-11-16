@@ -52,7 +52,7 @@ def write_output(output_file, data):
 
 # Main execution
 priced_file = 'priced.csv'
-formatted_file = 'formatted.csv'
+formatted_file = 'output.csv'
 output_file = 'formatted2.csv'
 
 processed_rows = process_priced_csv(priced_file)

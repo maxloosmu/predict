@@ -142,7 +142,7 @@ def categorize_entry(data):
         return "CD"
     elif re.search(r"Notification .+ Business Performance Update", data):
         return "Notification of Update"
-    elif "BUSINESS UPDATE" in data or "Business Performance Update" in data or "Business Update" in data:
+    elif "BUSINESS UPDATE" in data or "Business Performance Update" in data or "Business Update" in data or "Business update" in data:
         return "Business Update"
     elif "Date of Release of Operational Updates" in data:
         return "Notification of Results Release"

@@ -10,71 +10,79 @@ def convert_date(month, day, year):
 def convert_volume(volume_str):
     return volume_str.replace(',', '') if volume_str != '-' else '0'
 
-def convert_data(input_file, output_file, formatted_file):
+def convert_data(input_file, output_file):
     try:
-        with open(input_file, 'r') as infile, open(output_file, 'w', newline='') as outfile, open(formatted_file, 'w', newline='') as formatted_outfile:
+        with open(input_file, 'r') as infile, open(output_file, 'w', newline='') as outfile:
             csv_writer = csv.writer(outfile)
-            formatted_csv_writer = csv.writer(formatted_outfile)
             
             content = infile.read().strip()
             fields = content.split()
             
             i = 0
-            previous_row = None
             while i < len(fields):
-                if i + 8 < len(fields) and not fields[i+3].startswith('*'):  # Regular stock data
+                # Check for dividend data
+                if i + 4 < len(fields) and fields[i+4] == "Dividend":
+                    # Process dividend record
+                    date = convert_date(fields[i], fields[i+1], fields[i+2])
+                    dividend_value = f"{fields[i+3]} Dividend"  # Concatenate to form "0.0450 Dividend"
+                    
+                    # Write dividend row as a single string in one column
+                    dividend_row = [date, dividend_value]
+                    csv_writer.writerow(dividend_row)
+                    
+                    # Skip the processed dividend fields
+                    i += 5
+                    
+                    # Check if next fields contain stock data for the same date
+                    if i + 8 < len(fields):
+                        # Ensure there are enough fields for stock data
+                        next_month = fields[i]
+                        next_day = fields[i+1]
+                        next_year = fields[i+2]
+                        
+                        # Convert the next date
+                        next_date = convert_date(next_month, next_day, next_year)
+                        
+                        if next_date == date:
+                            open_price, high, low, close, adj_close, volume = fields[i+3:i+9]
+                            stock_row = [
+                                next_date,
+                                open_price,
+                                high,
+                                low,
+                                close,
+                                adj_close,
+                                convert_volume(volume)
+                            ]
+                            csv_writer.writerow(stock_row)
+                            i += 9  # Move past the stock data
+                            continue
+                
+                # Process regular stock data
+                elif i + 8 < len(fields):
                     date = convert_date(fields[i], fields[i+1], fields[i+2])
                     open_price, high, low, close, adj_close, volume = fields[i+3:i+9]
-                    volume = convert_volume(volume)
-                    
-                    row = [date, open_price, high, low, close, adj_close, volume]
-                    print(f"Writing stock data: {row}")
+                    row = [
+                        date,
+                        open_price,
+                        high,
+                        low,
+                        close,
+                        adj_close,
+                        convert_volume(volume)
+                    ]
                     csv_writer.writerow(row)
-                    
-                    if previous_row and previous_row[0] == date and 'Dividend' in previous_row[1]:
-                        formatted_csv_writer.writerow(previous_row)
-                        formatted_csv_writer.writerow(row)
-                        previous_row = None
-                    else:
-                        if previous_row:
-                            formatted_csv_writer.writerow(previous_row)
-                        previous_row = row
-                    
                     i += 9
-                elif i + 4 < len(fields) and fields[i+3].startswith('*'):  # Dividend data
-                    date = convert_date(fields[i], fields[i+1], fields[i+2])
-                    dividend = float(fields[i+3].strip('*'))  # Convert to float
-                    
-                    output_row = [date] + [''] * 6 + [f"{dividend}"]
-                    formatted_row = [date, f"{dividend} Dividend"] + [''] * 5
-                    print(f"Writing dividend data: {output_row}")
-                    csv_writer.writerow(output_row)
-                    
-                    if previous_row and previous_row[0] == date:
-                        formatted_csv_writer.writerow(formatted_row)
-                        formatted_csv_writer.writerow(previous_row)
-                        previous_row = None
-                    else:
-                        if previous_row:
-                            formatted_csv_writer.writerow(previous_row)
-                        previous_row = formatted_row
-                    
-                    i += 5
                 else:
-                    print(f"Warning: Unexpected data format at index {i}")
-                    print(f"Remaining fields: {fields[i:]}")
+                    # Not enough fields to process further
                     break
-            
-            # Write the last row if it exists
-            if previous_row:
-                formatted_csv_writer.writerow(previous_row)
         
-        print(f"Conversion complete. Data written to {output_file} and {formatted_file}")
+        print(f"Conversion complete. Data written to {output_file}")
     except Exception as e:
         print(f"An error occurred: {e}")
+        raise
 
 if __name__ == "__main__":
     input_file = "new.txt"
     output_file = "output.csv"
-    formatted_file = "formatted.csv"
-    convert_data(input_file, output_file, formatted_file)
+    convert_data(input_file, output_file)
