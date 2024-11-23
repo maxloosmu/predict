@@ -1,0 +1,63 @@
+Sub HighlightIncreasingValues()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim dateCol As Range
+    Dim closeCol As Range
+    Dim increasing As Boolean
+    
+    ' Set the worksheet to active sheet
+    Set ws = ActiveSheet
+    
+    ' Find the last row with data in column E
+    lastRow = ws.Cells(ws.Rows.Count, "E").End(xlUp).Row
+    
+    ' Clear any existing highlighting in column E
+    ws.Range("E2:E" & lastRow).Interior.ColorIndex = xlNone
+    
+    ' Set the ranges for date and close columns
+    Set dateCol = ws.Range("A2:A" & lastRow)
+    Set closeCol = ws.Range("E2:E" & lastRow)
+    
+    ' Loop through each row starting from row 2
+    For i = 2 To lastRow
+        ' Check if we have data in both columns
+        If Not IsEmpty(ws.Cells(i, "E")) Then
+            ' If this is not the first row with data
+            If i > 2 Then
+                ' Find the previous non-empty cell in column E
+                Dim prevRow As Long
+                prevRow = i - 1
+                Do While IsEmpty(ws.Cells(prevRow, "E")) And prevRow > 1
+                    prevRow = prevRow - 1
+                Loop
+                
+                ' Only compare if we found a previous value and dates are in ascending order
+                If prevRow > 1 And ws.Cells(i, "A") > ws.Cells(prevRow, "A") Then
+                    ' Check if current value is greater than previous value
+                    If ws.Cells(i, "E").Value > ws.Cells(prevRow, "E").Value Then
+                        ' Highlight both the current cell and the previous cell in light blue
+                        ws.Cells(i, "E").Interior.Color = RGB(173, 216, 230)
+                        
+                        ' Find and highlight the cell with the immediately previous date
+                        Dim previousDateRow As Long
+                        previousDateRow = i - 1
+                        Do While previousDateRow > 1
+                            If Not IsEmpty(ws.Cells(previousDateRow, "A")) Then
+                                If ws.Cells(previousDateRow, "A").Value = _
+                                   WorksheetFunction.Max( _
+                                       ws.Range("A2:A" & i - 1).SpecialCells(xlCellTypeConstants)) Then
+                                    ws.Cells(previousDateRow, "E").Interior.Color = RGB(173, 216, 230)
+                                    Exit Do
+                                End If
+                            End If
+                            previousDateRow = previousDateRow - 1
+                        Loop
+                    End If
+                End If
+            End If
+        End If
+    Next i
+    
+    MsgBox "Analysis complete! Cells with increasing values and their previous date values have been highlighted in light blue.", vbInformation
+End Sub
