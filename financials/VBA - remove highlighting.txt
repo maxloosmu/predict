@@ -1,0 +1,73 @@
+Sub ProcessHighlightedGroups()
+    Dim rng As Range
+    Dim cell As Range
+    Dim groupStart As Long
+    Dim maxVal As Double
+    Dim maxPos As Long
+    Dim inGroup As Boolean
+    
+    ' Set range to column E
+    Set rng = Range("E:E")
+    
+    ' Initialize variables
+    groupStart = 0
+    inGroup = False
+    
+    ' Loop through cells
+    For Each cell In rng.Cells
+        ' Check if cell has value and is light blue
+        If Not IsEmpty(cell) And cell.Interior.Color = RGB(173, 216, 230) Then
+            ' Start new group if not in one
+            If Not inGroup Then
+                groupStart = cell.Row
+                maxVal = cell.Value
+                maxPos = cell.Row
+                inGroup = True
+            Else
+                ' Update max value if current is larger
+                If cell.Value > maxVal Then
+                    maxVal = cell.Value
+                    maxPos = cell.Row
+                End If
+            End If
+        Else
+            ' Process group if we were in one
+            If inGroup Then
+                Call ProcessGroup(groupStart, cell.Row - 1, maxPos)
+                inGroup = False
+            End If
+        End If
+    Next cell
+    
+    ' Process final group if exists
+    If inGroup Then
+        Call ProcessGroup(groupStart, rng.Cells.Count, maxPos)
+    End If
+End Sub
+
+Sub ProcessGroup(startRow As Long, endRow As Long, maxPos As Long)
+    Dim i As Long
+    Dim prevDate As Date
+    Dim currentDate As Date
+    Dim validGroup As Boolean
+    
+    validGroup = True
+    prevDate = Range("A" & startRow).Value
+    
+    ' Verify dates are increasing
+    For i = startRow + 1 To endRow
+        currentDate = Range("A" & i).Value
+        If currentDate <= prevDate Then
+            validGroup = False
+            Exit For
+        End If
+        prevDate = currentDate
+    Next i
+    
+    ' Remove highlighting after max value if group is valid
+    If validGroup And (endRow - startRow) >= 1 Then
+        For i = maxPos + 1 To endRow
+            Range("E" & i).Interior.ColorIndex = xlNone
+        Next i
+    End If
+End Sub

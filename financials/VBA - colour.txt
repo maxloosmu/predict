@@ -1,0 +1,46 @@
+Sub ColorHandling()
+    'Part 1: Get RGB color of A1 and write code to B1
+    Dim redComponent As Long
+    Dim greenComponent As Long
+    Dim blueComponent As Long
+    Dim colorCode As Long
+    
+    colorCode = Cells(1, 1).Interior.Color
+    redComponent = colorCode Mod 256
+    greenComponent = (colorCode \ 256) Mod 256
+    blueComponent = (colorCode \ 65536) Mod 256
+    
+    'Format the RGB string
+    Cells(1, 2).Value = "(" & redComponent & ", " & greenComponent & ", " & blueComponent & ")"
+    
+    'Part 2: Read RGB code from A2 and apply to B2
+    Dim rgbString As String
+    Dim rgbArray() As String
+    Dim rgbColor As Long
+    
+    'Get the RGB string and remove parentheses and spaces
+    rgbString = Replace(Replace(Replace(Cells(2, 1).Value, "(", ""), ")", ""), " ", "")
+    'Split the string into array based on comma
+    rgbArray = Split(rgbString, ",")
+    
+    'Convert RGB values to long color code
+    If UBound(rgbArray) = 2 Then
+        If IsNumeric(rgbArray(0)) = True And IsNumeric(rgbArray(1)) = True And IsNumeric(rgbArray(2)) = True Then
+            If rgbArray(0) >= 0 And rgbArray(0) <= 255 And rgbArray(1) >= 0 And rgbArray(1) <= 255 And rgbArray(2) >= 0 And rgbArray(2) <= 255 Then
+                rgbColor = RGB(CLng(rgbArray(0)), CLng(rgbArray(1)), CLng(rgbArray(2)))
+                Cells(2, 2).Interior.Color = rgbColor
+            Else
+                Cells(2, 2).Interior.Pattern = xlNone
+                MsgBox "Please enter RGB values between 0 and 255"
+            End If
+        Else
+            Cells(2, 1).Value = "(R,G,B)"
+            Cells(2, 2).Interior.Pattern = xlNone
+            MsgBox "Please enter RGB values between 0 and 255, in the format (R,G,B)"
+        End If
+    Else
+        Cells(2, 1).Value = "(R,G,B)"
+        Cells(2, 2).Interior.Pattern = xlNone
+        MsgBox "Please enter RGB values between 0 and 255, in the format (R,G,B)"
+    End If
+End Sub
